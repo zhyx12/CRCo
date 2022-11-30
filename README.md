@@ -91,7 +91,7 @@ cd ${HOME}/PycharmProjects/class-relation-learning
 ```
 CUDA_VISIBLE_DEVICES=0 bash ./experiments/sfda_source_only_train.sh my_exp ./configs/sfda_class_relation/class_relation_officehome_AaD_AC.py
 ```
-You can skip the step by using our provided models in this link[https://drive.google.com/drive/folders/1xNHfjZUCUKql3H26jaAuoNy7XYiS12Qv?usp=share_link],
+You can skip the step by using our provided models in this [link](https://drive.google.com/drive/folders/1xNHfjZUCUKql3H26jaAuoNy7XYiS12Qv?usp=share_link),
 
 4. train target domain model
 ```
