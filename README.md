@@ -1,6 +1,8 @@
 This is implementation for the reviewed paper: Class Relationship Embedded Learning for Source-Free Unsupervised Domain
 Adaptation, paper ID: 979.
 
+**Note**: Since it is not convenient to download all files from this anonymous website, we zip them all into code.zip. You can download code.zip to view all these files locally.
+
 ## Project structure
 
 The project structure is presented as follows
