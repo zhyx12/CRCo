@@ -81,7 +81,7 @@ Below are the structure under **data**.
 
 ##  
 
-## Training and Testing Process
+## Steps to reproduce the results
 Here we take Office-Home A->C under the close-set source-free unsupervised Domain adaptation setting as an example.
 
 1. Some preparations. 
