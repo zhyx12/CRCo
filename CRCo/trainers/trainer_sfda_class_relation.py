@@ -25,7 +25,7 @@ class ValidatorSFDAClassRelation(BaseValidator):
         val_label = val_batch_data['gt_label'].squeeze(1)
         val_metas = val_batch_data['img_metas']
         with torch.no_grad():
-            feat, pred_unlabeled,target_feat, target_logits = self.model_dict['base_model'](val_img)
+            feat, pred_unlabeled, target_feat, target_logits = self.model_dict['base_model'](val_img)
         return {'img': val_img,
                 'gt': val_label,
                 'img_metas': val_metas,
@@ -49,9 +49,6 @@ class TrainerSFDAClassRelation(BaseTrainer):
                  use_cluster_label_for_fixmatch=False, lambda_fixmatch_temp=0.07,
                  bank_size=512, lambda_nce=1.0, lambda_temp=0.07,
                  non_diag_alpha=1.0, add_current_data_for_instance=False,
-                 class_non_diag_value = 0.0,
-                 instance_non_diag_value=0.0,
-                 class_simmat_type=0, instance_simmat_type=0,
                  use_only_current_batch_for_instance=False, max_iters=15000, beta=0.0,
                  ):
         super(TrainerSFDAClassRelation, self).__init__(**basic_parameters)
@@ -78,10 +75,6 @@ class TrainerSFDAClassRelation(BaseTrainer):
         self.class_contrastive_simmat = None
         self.instance_contrastive_simmat = None
         self.add_current_data_for_instance = add_current_data_for_instance
-        self.class_simmat_type = class_simmat_type
-        self.instance_simmat_type = instance_simmat_type
-        self.class_non_diag_value = class_non_diag_value
-        self.instance_non_diag_value = instance_non_diag_value
         self.use_only_current_batch_for_instance = use_only_current_batch_for_instance
         self.max_iters = max_iters
         self.beta = beta
@@ -165,7 +158,7 @@ class TrainerSFDAClassRelation(BaseTrainer):
         # timely updated weak bank
         self.update_weak_bank_timely(target_weak_feat, target_weak_prob, tgt_img_ind)
         # baseline
-        loss = self.baseline_loss(online_weak_prob, target_weak_feat, batch_metrics,online_weak_logits )
+        loss = self.baseline_loss(online_weak_prob, target_weak_feat, batch_metrics, online_weak_logits)
         #
         # fixmatch损失
         pseudo_label = torch.softmax(target_weak_logits.detach(), dim=-1)
@@ -214,23 +207,23 @@ class TrainerSFDAClassRelation(BaseTrainer):
             self.num_k = 1
         else:
             if self.add_current_data_for_instance:
-                tmp_weak_negative_bank = torch.cat((self.weak_negative_bank, online_weak_prob),dim=0)
-                tmp_strong_negative_bank = torch.cat((self.strong_negative_bank, strong_feat_for_backbone),dim=0)
-                neg_ind = torch.cat((self.ngative_img_ind_bank,tgt_img_ind))
+                tmp_weak_negative_bank = torch.cat((self.weak_negative_bank, online_weak_prob), dim=0)
+                tmp_strong_negative_bank = torch.cat((self.strong_negative_bank, strong_feat_for_backbone), dim=0)
+                neg_ind = torch.cat((self.ngative_img_ind_bank, tgt_img_ind))
             else:
                 tmp_weak_negative_bank = self.weak_negative_bank
                 tmp_strong_negative_bank = self.strong_negative_bank
                 neg_ind = self.ngative_img_ind_bank
         #
         info_nce_loss_1 = self.instance_contrastive_loss(strong_feat_for_backbone, k_weak_for_backbone,
-                                                         tmp_weak_negative_bank, 
-                                                         self_ind =tgt_img_ind ,neg_ind=neg_ind )
+                                                         tmp_weak_negative_bank,
+                                                         self_ind=tgt_img_ind, neg_ind=neg_ind)
         info_nce_loss_3 = self.instance_contrastive_loss(strong_feat_for_backbone, k_strong_2,
                                                          tmp_strong_negative_bank,
-                                                         self_ind =tgt_img_ind, neg_ind=neg_ind)
+                                                         self_ind=tgt_img_ind, neg_ind=neg_ind)
         info_nce_loss_2 = self.instance_contrastive_loss(weak_feat_for_backbone, k_strong_for_backbone,
-                                                         tmp_strong_negative_bank, 
-                                                         self_ind =tgt_img_ind,neg_ind=neg_ind)
+                                                         tmp_strong_negative_bank,
+                                                         self_ind=tgt_img_ind, neg_ind=neg_ind)
         info_nce_loss = (info_nce_loss_1 + info_nce_loss_2 + info_nce_loss_3) / 3.0
         #
         loss += info_nce_loss * self.lambda_nce
@@ -239,7 +232,7 @@ class TrainerSFDAClassRelation(BaseTrainer):
         self.step_grad_all()
         #
         #
-        self.update_negative_bank(target_weak_prob, target_strong_prob[0:tgt_unlabeled_size, :],tgt_img_ind)
+        self.update_negative_bank(target_weak_prob, target_strong_prob[0:tgt_unlabeled_size, :], tgt_img_ind)
         #
         # batch_metrics['loss']['kld'] = kld_loss.item()
         batch_metrics['loss']['info_nce'] = info_nce_loss.item() if isinstance(info_nce_loss,
@@ -256,11 +249,11 @@ class TrainerSFDAClassRelation(BaseTrainer):
         weights = weights['base_model']
         for key in weights:
             key_split = key.split('.')
-            if key_split[1] in ['target_network','target_classifier']:
-                key_split[1] = key_split[1].replace('target','online')
+            if key_split[1] in ['target_network', 'target_classifier']:
+                key_split[1] = key_split[1].replace('target', 'online')
                 online_key = ('.').join(key_split)
                 weights[key] = weights[online_key]
-        self.model_dict['base_model'].load_state_dict(weights,strict=False)
+        self.model_dict['base_model'].load_state_dict(weights, strict=False)
         logger.info('load pretrained model {}'.format(weights_path))
 
     def update_bank(self):
@@ -281,14 +274,14 @@ class TrainerSFDAClassRelation(BaseTrainer):
                 score = concat_all_gather(tmp_score)
                 img_ind = concat_all_gather(img_ind.to('cuda:{}'.format(self.local_rank)))
                 img_label = concat_all_gather(img_label.to('cuda:{}'.format(self.local_rank)))
-                self.weak_feat_bank[img_ind] = F.normalize(feat,dim=-1)
+                self.weak_feat_bank[img_ind] = F.normalize(feat, dim=-1)
                 self.weak_score_bank[img_ind] = score
                 self.label_bank[img_ind] = img_label.squeeze(1).to('cuda:{}'.format(self.local_rank))
                 #
                 if self.iteration == 0:
                     target_feat = concat_all_gather(target_feat)
                     target_score = concat_all_gather(F.softmax(target_logits, dim=-1))
-                    self.aad_weak_feat_bank[img_ind] = F.normalize(target_feat,dim=-1)
+                    self.aad_weak_feat_bank[img_ind] = F.normalize(target_feat, dim=-1)
                     self.aad_weak_score_bank[img_ind] = target_score
                 #
                 shape += img.shape[0]
@@ -341,17 +334,12 @@ class TrainerSFDAClassRelation(BaseTrainer):
         pred_label = torch.argmax(cos_similarity, dim=1)
         return pred_label
 
-    def compute_class_sim(self, class_prototype, use_softmax_relation=False):
-        class_prototype = F.normalize(class_prototype)
-        cos_similarity = torch.mm(class_prototype, class_prototype.t())
-        return cos_similarity
-
     def my_sim_compute(self, prob_1, prob_2, sim_mat, expand=True):
         """
         prob_1: B1xC
         prob_2: B2xC
         sim_mat: CxC
-        expand: True, prob_2中每一个都要和prob_1中的进行计算; Fasle, 需要B1=B2
+        expand: True, computation conducted between every element in prob_2 and prob_1; Fasle, need B1=B2
         """
         b1 = prob_1.shape[0]
         b2 = prob_2.shape[0]
@@ -432,7 +420,7 @@ class TrainerSFDAClassRelation(BaseTrainer):
             loss_aad_pos, loss_aad_neg = self.AaD_loss(score, feat)
             batch_metrics['loss']['aad_pos'] = loss_aad_pos.item()
             batch_metrics['loss']['aad_neg'] = loss_aad_neg.item()
-            tmp_lambda = (1 + 10 * self.iteration / self.max_iters)**(-self.beta)
+            tmp_lambda = (1 + 10 * self.iteration / self.max_iters) ** (-self.beta)
             return (loss_aad_pos + loss_aad_neg * tmp_lambda) * self.lambda_aad
         else:
             raise RuntimeError('wrong type of baseline')
@@ -458,13 +446,13 @@ class TrainerSFDAClassRelation(BaseTrainer):
         constrastive_labels = torch.zeros((current_batch_size,), dtype=torch.long,
                                           device='cuda:{}'.format(self.local_rank))
         return constrastive_labels
-    
+
     def obtain_neg_mask(self, self_ind, neg_ind):
         self_size = self_ind.shape[0]
         neg_size = neg_ind.shape[0]
         final_mask = torch.ones((self_size, neg_size)).to('cuda:{}'.format(self.local_rank))
         # 获取self_ind对应的特征
-        self_feat = self.aad_weak_feat_bank[self_ind,:]
+        self_feat = self.aad_weak_feat_bank[self_ind, :]
         # 计算self_feat的近邻
         distance = self_feat @ self.aad_weak_feat_bank.T
         _, near_ind = torch.topk(distance,
@@ -476,16 +464,15 @@ class TrainerSFDAClassRelation(BaseTrainer):
         near_ind = near_ind.unsqueeze(1)
         #
         mask_ind = (neg_ind == near_ind).sum(-1)
-        final_mask[mask_ind>0] = 0
+        final_mask[mask_ind > 0] = 0
         return final_mask
-        
 
     def update_negative_bank(self, weak_score, strong_score, img_ind):
         """
-        更新trainer自带的存储score的bank
-        :param weak_score: teacher模型输出的weak score
-        :param strong_score: teacher模型输出的strong score
-        :img_ind: 图像的index
+        update score bank in trainer
+        :param weak_score: weak score output by teacher model
+        :param strong_score: strong score output by teacher model
+        :img_ind: image index
         :return: None
         """
 
@@ -519,34 +506,13 @@ class TrainerSFDAClassRelation(BaseTrainer):
             #
             self.aad_weak_feat_bank[tmp_img_ind] = output_f_.detach().clone()
             self.aad_weak_score_bank[tmp_img_ind] = tmp_softmax_out.detach().clone()
-    
+
     def obtain_sim_mat(self, usage):
-        if usage == 'class_contrastive':
-            sim_type = self.class_simmat_type
-            non_diag_value = self.class_non_diag_value
-        elif usage == 'instance_contrastive':
-            sim_type = self.instance_simmat_type
-            non_diag_value = self.instance_non_diag_value
-        else:
-            raise RuntimeError('wrong type')
-        #
-        if sim_type == 0:
-            base_model = self.model_dict['base_model']
-            fc_weight = base_model.module.online_classifier.fc.weight_v.detach()
-            normalized_fc_weight = F.normalize(fc_weight)
-            sim_mat = normalized_fc_weight @ normalized_fc_weight.T
-        elif sim_type == 1:
-            eye_mat = torch.eye(self.num_class).to("cuda:{}".format(self.local_rank))
-            non_eye_mat = 1 - eye_mat
-            sim_mat = eye_mat + non_eye_mat * non_diag_value
-        elif sim_type == 2:
-            base_model = self.model_dict['base_model']
-            fc_weight = base_model.module.online_classifier.fc.weight_v.detach()
-            normalized_fc_weight = F.normalize(fc_weight)
-            sim_mat_orig = normalized_fc_weight@normalized_fc_weight.T
-            eye_mat = torch.eye(self.num_class).to("cuda:{}".format(self.local_rank))
-            non_eye_mat = 1 - eye_mat
-            sim_mat = (eye_mat + non_eye_mat * sim_mat_orig * self.non_diag_alpha).clone()
-        else:
-            raise RuntimeError('wrong type of sim_type')
+        base_model = self.model_dict['base_model']
+        fc_weight = base_model.module.online_classifier.fc.weight_v.detach()
+        normalized_fc_weight = F.normalize(fc_weight)
+        sim_mat_orig = normalized_fc_weight @ normalized_fc_weight.T
+        eye_mat = torch.eye(self.num_class).to("cuda:{}".format(self.local_rank))
+        non_eye_mat = 1 - eye_mat
+        sim_mat = (eye_mat + non_eye_mat * sim_mat_orig * self.non_diag_alpha).clone()
         return sim_mat

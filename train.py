@@ -7,6 +7,7 @@ from CRCo.trainers import *
 from CRCo.models import *
 from CRCo.loaders import *
 from CRCo.trainers import *
+
 if __name__ == '__main__':
     project_root = os.getcwd()
     package_name = 'CRCo'

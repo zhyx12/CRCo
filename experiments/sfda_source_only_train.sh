@@ -2,13 +2,11 @@
 job_id=$1
 config_file=$2
 
-project_home='fastda_cls'
+project_home='class-relation-learning'
 
 ###
 shell_folder=$(cd "$(dirname "$0")"; pwd)
 echo $shell_folder
-source $shell_folder/process_data.sh
-source $shell_folder/process_home_path.sh
 echo $HOME
 cd $HOME'/PycharmProjects/'${project_home} || exit
 
@@ -24,9 +22,3 @@ python_file=./train.py
 python -m torch.distributed.launch --nproc_per_node=$GPUS --master_port=$PORT \
   ${python_file} --job_id ${job_id} --config ${config_file} \
   --trainer ${trainer_class} --validator ${validator_class}
-
-#python_file=./train.py
-## CUDA_LAUNCH_BLOCKING=1
-#CUDA_LAUNCH_BLOCKING=1 python -m torch.distributed.launch --nproc_per_node=$GPUS --master_port=$PORT \
-#  ${python_file} --task_type cls --job_id ${job_id} --config ${config_file} \
-#  --trainer ${trainer_class} --validator ${validator_class}
